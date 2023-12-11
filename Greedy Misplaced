@@ -3,97 +3,112 @@
 #include <vector>
 #include <algorithm>
 
+using namespace std;
+
 #define N 3
 
 // Structure to represent a puzzle node
 struct Node {
-    int mat[N][N];  // Puzzle matrix
-    int x, y;       // Coordinates of the empty cell
-    int cost;       // Heuristic cost (Hamming distance)
+    Node* parent;
+    int mat[N][N];
+    int x, y;
+    int cost;
+    int level;
+};
+
+// Function to print the puzzle matrix
+int printMatrix(int mat[N][N]) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++)
+            printf("%d ", mat[i][j]);
+        printf("\n");
+    }
+    return 0;
+}
+
+// Function to create a new node
+Node* newNode(int mat[N][N], int x, int y, int newX, int newY, int level, Node* parent) {
+    Node* node = new Node;
+    node->parent = parent;
+
+    // Copy the puzzle matrix
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            node->mat[i][j] = mat[i][j];
+        }
+    }
+
+    // Swap the empty cell with the adjacent tile
+    int temp = node->mat[x][y];
+    node->mat[x][y] = node->mat[newX][newY];
+    node->mat[newX][newY] = temp;
+
+    node->cost = INT_MAX; // Placeholder for cost
+    node->level = level;
+
+    node->x = newX;
+    node->y = newY;
+    return node;
+}
+
+// Function to calculate the heuristic cost (Misplaced Tile)
+int calculateCost(int mat[N][N], int final[N][N]) {
+    int count = 0;
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            if (mat[i][j] != 0 && mat[i][j] != final[i][j]) // Exclude the cost for the empty cell
+                count++;
+    return count;
+}
+
+// Function to check if a given position is within the puzzle boundaries
+int isSafe(int x, int y) {
+    return (x >= 0 && x < N && y >= 0 && y < N);
+}
+
+// Function to print the path from the initial state to the current state
+void printPath(Node* root) {
+    if (root == NULL)
+        return;
+    printPath(root->parent);
+    printMatrix(root->mat);
+    printf("\n");
+}
+
+// Custom comparator structure for the priority queue
+struct comp {
+    bool operator()(const Node* lhs, const Node* rhs) const {
+        return lhs->cost > rhs->cost; // Modified comparison for greedy search, only consider the heuristic cost
+    }
 };
 
 // Offsets for moves: right, up, left, down
 int row[] = { 1, 0, -1, 0 };
 int col[] = { 0, -1, 0, 1 };
 
-// Function to calculate the Hamming distance heuristic
-int calculateHammingDistance(int mat[N][N], int final[N][N]) {
-    int distance = 0;
-    for (int i = 0; i < N; i++)
-        for (int j = 0; j < N; j++)
-            if (mat[i][j] != 0 && mat[i][j] != final[i][j])
-                distance++;
-    return distance;
-}
+// Function to solve the puzzle using Greedy Best-First Search
+void solve(int initial[N][N], int x, int y, int final[N][N]) {
+    priority_queue<Node*, vector<Node*>, comp> pq;
 
-// Function to check if a move is valid within the puzzle boundaries
-bool isMoveValid(int x, int y) {
-    return (x >= 0 && x < N && y >= 0 && y < N);
-}
+    Node* root = newNode(initial, x, y, x, y, 0, NULL);
+    root->cost = calculateCost(initial, final);
+    pq.push(root);
 
-// Custom comparison structure for the priority queue
-struct NodeComparator {
-    bool operator()(const Node& lhs, const Node& rhs) const {
-        return lhs.cost > rhs.cost;
-    }
-};
+    while (!pq.empty()) {
+        Node* min = pq.top();
+        pq.pop();
 
-// Function to print the puzzle matrix
-void printPuzzle(int mat[N][N]) {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++)
-            std::cout << mat[i][j] << ' ';
-        std::cout << std::endl;
-    }
-}
-
-// Greedy Best-First Search function using Hamming distance as the heuristic
-void solvePuzzle(int initial[N][N], int x, int y, int final[N][N]) {
-    // Priority queue to store nodes with the lowest Hamming distance at the top
-    std::priority_queue<Node, std::vector<Node>, NodeComparator> priorityQueue;
-
-    // Initialize the root node with the initial state
-    Node root;
-    root.x = x;
-    root.y = y;
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
-            root.mat[i][j] = initial[i][j];
-        }
-    }
-    // Calculate Hamming distance as the initial cost
-    root.cost = calculateHammingDistance(initial, final);
-    priorityQueue.push(root);
-
-    // GBFS loop
-    while (!priorityQueue.empty()) {
-        // Get the node with the lowest cost (Hamming distance)
-        Node minNode = priorityQueue.top();
-        priorityQueue.pop();
-
-        // If the Hamming distance is 0, the puzzle is in the goal state
-        if (minNode.cost == 0) {
-            // Print the solution path
-            printPuzzle(minNode.mat);
+        if (min->cost == 0) {
+            printPath(min);
             return;
         }
 
         // Explore possible moves
         for (int i = 0; i < 4; i++) {
-            int newX = minNode.x + row[i];
-            int newY = minNode.y + col[i];
-
-            // Check if the move is valid
-            if (isMoveValid(newX, newY)) {
-                // Create a child node by swapping the empty cell with an adjacent tile
-                Node childNode = minNode;
-                std::swap(childNode.mat[minNode.x][minNode.y], childNode.mat[newX][newY]);
-                childNode.x = newX;
-                childNode.y = newY;
-                // Calculate Hamming distance for the child node
-                childNode.cost = calculateHammingDistance(childNode.mat, final);
-                // Add the child node to the priority queue
-                priorityQueue.push(childNode);
+            if (isSafe(min->x + row[i], min->y + col[i])) {
+                Node* child = newNode(min->mat, min->x, min->y, min->x + row[i], min->y + col[i], min->level + 1, min);
+                child->cost = calculateCost(child->mat, final);
+                pq.push(child);
             }
         }
     }
@@ -101,11 +116,10 @@ void solvePuzzle(int initial[N][N], int x, int y, int final[N][N]) {
 
 // Main function
 int main() {
-    // Initial and final states
     int initial[N][N] = {
         {1, 2, 3},
-        {4, 0, 5},
-        {6, 7, 8}
+        {5, 6, 0},
+        {4, 7, 8}
     };
 
     int final[N][N] = {
@@ -114,11 +128,10 @@ int main() {
         {7, 8, 0}
     };
 
-    // Coordinates of the empty cell in the initial state
-    int x = 1, y = 1;
+    int x = 1, y = 2;
 
     // Solve the puzzle
-    solvePuzzle(initial, x, y, final);
+    solve(initial, x, y, final);
 
     return 0;
 }
