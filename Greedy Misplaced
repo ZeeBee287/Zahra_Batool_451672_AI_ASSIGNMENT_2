@@ -1,0 +1,124 @@
+#include <iostream>
+#include <queue>
+#include <vector>
+#include <algorithm>
+
+#define N 3
+
+// Structure to represent a puzzle node
+struct Node {
+    int mat[N][N];  // Puzzle matrix
+    int x, y;       // Coordinates of the empty cell
+    int cost;       // Heuristic cost (Hamming distance)
+};
+
+// Offsets for moves: right, up, left, down
+int row[] = { 1, 0, -1, 0 };
+int col[] = { 0, -1, 0, 1 };
+
+// Function to calculate the Hamming distance heuristic
+int calculateHammingDistance(int mat[N][N], int final[N][N]) {
+    int distance = 0;
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            if (mat[i][j] != 0 && mat[i][j] != final[i][j])
+                distance++;
+    return distance;
+}
+
+// Function to check if a move is valid within the puzzle boundaries
+bool isMoveValid(int x, int y) {
+    return (x >= 0 && x < N && y >= 0 && y < N);
+}
+
+// Custom comparison structure for the priority queue
+struct NodeComparator {
+    bool operator()(const Node& lhs, const Node& rhs) const {
+        return lhs.cost > rhs.cost;
+    }
+};
+
+// Function to print the puzzle matrix
+void printPuzzle(int mat[N][N]) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++)
+            std::cout << mat[i][j] << ' ';
+        std::cout << std::endl;
+    }
+}
+
+// Greedy Best-First Search function using Hamming distance as the heuristic
+void solvePuzzle(int initial[N][N], int x, int y, int final[N][N]) {
+    // Priority queue to store nodes with the lowest Hamming distance at the top
+    std::priority_queue<Node, std::vector<Node>, NodeComparator> priorityQueue;
+
+    // Initialize the root node with the initial state
+    Node root;
+    root.x = x;
+    root.y = y;
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            root.mat[i][j] = initial[i][j];
+        }
+    }
+    // Calculate Hamming distance as the initial cost
+    root.cost = calculateHammingDistance(initial, final);
+    priorityQueue.push(root);
+
+    // GBFS loop
+    while (!priorityQueue.empty()) {
+        // Get the node with the lowest cost (Hamming distance)
+        Node minNode = priorityQueue.top();
+        priorityQueue.pop();
+
+        // If the Hamming distance is 0, the puzzle is in the goal state
+        if (minNode.cost == 0) {
+            // Print the solution path
+            printPuzzle(minNode.mat);
+            return;
+        }
+
+        // Explore possible moves
+        for (int i = 0; i < 4; i++) {
+            int newX = minNode.x + row[i];
+            int newY = minNode.y + col[i];
+
+            // Check if the move is valid
+            if (isMoveValid(newX, newY)) {
+                // Create a child node by swapping the empty cell with an adjacent tile
+                Node childNode = minNode;
+                std::swap(childNode.mat[minNode.x][minNode.y], childNode.mat[newX][newY]);
+                childNode.x = newX;
+                childNode.y = newY;
+                // Calculate Hamming distance for the child node
+                childNode.cost = calculateHammingDistance(childNode.mat, final);
+                // Add the child node to the priority queue
+                priorityQueue.push(childNode);
+            }
+        }
+    }
+}
+
+// Main function
+int main() {
+    // Initial and final states
+    int initial[N][N] = {
+        {1, 2, 3},
+        {4, 0, 5},
+        {6, 7, 8}
+    };
+
+    int final[N][N] = {
+        {1, 2, 3},
+        {4, 5, 6},
+        {7, 8, 0}
+    };
+
+    // Coordinates of the empty cell in the initial state
+    int x = 1, y = 1;
+
+    // Solve the puzzle
+    solvePuzzle(initial, x, y, final);
+
+    return 0;
+}
