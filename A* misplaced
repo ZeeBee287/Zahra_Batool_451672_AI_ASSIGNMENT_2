@@ -3,7 +3,7 @@
 #include <climits>
 using namespace std; // C++ directive that tells the compiler to consider the identifiers defined in the std (standard) namespace
 
-#define N 3 //N is set to 3, representing the size of the puzzle (3x3).
+#define N 3 //N is set to 3, representing the size of the puzzle (3x3)
 
 struct Node //Defines a structure Node to represent a state in the search space
 {
